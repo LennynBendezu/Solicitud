@@ -4,7 +4,7 @@ import os
 
 app = Flask(__name__)
 
-# Ruta donde se guardará el archivo Excel
+# Ruta del archivo Excel
 EXCEL_FILE = "solicitudes.xlsx"
 
 # Crear archivo Excel si no existe
@@ -19,8 +19,9 @@ if not os.path.exists(EXCEL_FILE):
 def dialogflow_webhook():
     req = request.get_json()
 
-    # Extraer parámetros de Dialogflow CX
-    params = req['sessionInfo']['parameters']
+    # Manejar diferentes formatos de JSON
+    params = req.get('sessionInfo', {}).get('parameters', req)  # Usa 'req' directo si no viene desde Dialogflow
+
     nombres = params.get("nombres", "")
     apellidos = params.get("apellidos", "")
     correo = params.get("correoelectronico", "")
@@ -28,19 +29,22 @@ def dialogflow_webhook():
     servicio = params.get("servicio", "")
     mensaje = params.get("mensaje", "")
 
-    # Abrir archivo Excel y agregar nueva fila
-    wb = openpyxl.load_workbook(EXCEL_FILE)
-    ws = wb.active
-    ws.append([nombres, apellidos, correo, telefono, servicio, mensaje])
-    wb.save(EXCEL_FILE)
+    # Agregar la solicitud al archivo Excel
+    try:
+        wb = openpyxl.load_workbook(EXCEL_FILE)
+        ws = wb.active
+        ws.append([nombres, apellidos, correo, telefono, servicio, mensaje])
+        wb.save(EXCEL_FILE)
+    except Exception as e:
+        return jsonify({"error": f"No se pudo escribir en el Excel: {str(e)}"}), 500
 
-    # Responder a Dialogflow CX
+    # Respuesta a Dialogflow CX
     response = {
         "fulfillment_response": {
             "messages": [
                 {
                     "text": {
-                        "text": ["Tu solicitud ha sido guardada en el archivo Excel. Puedes descargarla desde nuestro sistema."]
+                        "text": ["Tu solicitud ha sido guardada correctamente en el archivo Excel."]
                     }
                 }
             ]
